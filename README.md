@@ -2,7 +2,7 @@
 
 A production-oriented educational backend for evaluating **synthetic** applications against configurable, illustrative underwriting policies. The complete project will demonstrate raw SQL, transactions, immutable rule versions, decision history, idempotency and Redis concurrency control.
 
-**Current milestone: Phase 1 — Foundation.** Business functionality is intentionally scheduled for later phases. This project is not a real lending policy or financial advice.
+**Current milestone: Phase 2 — Feature 2.2, SQL Migration System.** The foundation and database schema design are complete; migration infrastructure is implemented. Business tables and functionality remain in later features. This project is not a real lending policy or financial advice.
 
 ## What works now
 
@@ -14,6 +14,7 @@ A production-oriented educational backend for evaluating **synthetic** applicati
 - Graceful HTTP draining and dependency cleanup on SIGINT/SIGTERM with a deadline.
 - Multi-stage, non-root Docker image; Compose services and PostgreSQL persistence.
 - Jest/Supertest tests, ESLint, Prettier and Swagger UI for the implemented endpoints.
+- Ordered SQL migrations with checksummed tracking, per-file transactions, concurrency locking and status reporting.
 
 No ORM or query builder is used. PostgreSQL is the source of truth. Redis is supporting infrastructure.
 
@@ -95,6 +96,37 @@ See [.env.example](.env.example) for all settings.
 
 Do not enable blanket proxy trust. Set only known proxy addresses for the real deployment topology. No request body, authorization header, raw error message, path or query string is logged.
 
+## Database migrations
+
+With `DATABASE_URL` configured for the intended database, run from the project root:
+
+```powershell
+npm run db:migrate:status
+npm run db:migrate
+```
+
+Both commands build and run the compiled CLI. They use a dedicated PostgreSQL connection and need no
+Redis configuration. `status` reports applied/pending files without creating tables. `db:migrate`
+initializes `public.schema_migrations` and applies pending SQL files atomically, one file at a time.
+There are no business migration files in Feature 2.2, so an initial run creates only the tracking table.
+Migrations do not run automatically when the server starts.
+
+For Docker, build the updated image and start PostgreSQL, then use the compiled command because the
+production image does not contain the TypeScript compiler:
+
+```powershell
+docker compose build backend
+docker compose up -d postgres
+docker compose run --rm --no-deps backend node dist/infrastructure/database/migrate.js status
+docker compose run --rm --no-deps backend node dist/infrastructure/database/migrate.js up
+```
+
+Wait until PostgreSQL is healthy before invoking the CLI. Compose's default database has no host port;
+use the container commands above unless you have separately configured a reachable host database.
+See [migration instructions](migrations/README.md) for naming, timeouts, checksums, concurrency and
+failure recovery. Applied files are immutable; corrective migrations move forward. No `down` or reset
+command is provided.
+
 ## API examples
 
 ```powershell
@@ -155,7 +187,7 @@ erDiagram
 
 This ERD is a design, not an installed schema. Entities will use UUIDs, TIMESTAMPTZ, constraints, foreign keys and indexes; financial columns use NUMERIC. Published rule sets will be immutable with one active version per product. See [database design](docs/database-design.md).
 
-`pg` was selected to make SQL, transaction boundaries and connection ownership explicit. Repositories will map rows to TypeScript and bind input using `$1`, `$2`, etc. A transaction helper will acquire one client, run BEGIN, pass it through related repositories, COMMIT or ROLLBACK and always release in finally. Pool queries cannot be mixed into a transaction. Migrations and seed scripts belong to Phase 2.
+`pg` was selected to make SQL, transaction boundaries and connection ownership explicit. Repositories will map rows to TypeScript and bind input using `$1`, `$2`, etc. A transaction helper will acquire one client, run BEGIN, pass it through related repositories, COMMIT or ROLLBACK and always release in finally. Pool queries cannot be mixed into a transaction. Migration tooling is implemented in Feature 2.2; business SQL migrations, the shared transaction helper and seed scripts remain later features.
 
 ## Planned evaluation workflow
 
@@ -175,19 +207,19 @@ Phase 7 uses cache-aside for immutable product/version rule snapshots with a con
 
 ## Roadmap and unfinished functionality
 
-| Phase | Deliverable                                                                            | Status                                     |
-| ----- | -------------------------------------------------------------------------------------- | ------------------------------------------ |
-| 1     | Runtime, configuration, health, logging, connections, Docker and foundation tests      | Implemented; see verification record below |
-| 2     | SQL migrations, normalized entities, transaction helper, repositories, synthetic seeds | Awaiting confirmation                      |
-| 3     | Application submission/retrieval/listing and validation                                | Planned                                    |
-| 4     | Draft rules, criteria, immutable publication/versioning                                | Planned                                    |
-| 5     | Operators, decimal metrics, decisions and history                                      | Planned                                    |
-| 6     | Redis IP token bucket, atomic/concurrent tests                                         | Planned                                    |
-| 7     | Versioned rule caching and fallback tests                                              | Planned                                    |
-| 8     | Database idempotency, secure local authentication, RBAC, reviews and audits            | Planned                                    |
-| 9     | Complete coverage/integration suite, Swagger, documentation and Docker verification    | Planned                                    |
+| Phase | Deliverable                                                                            | Status                                                        |
+| ----- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| 1     | Runtime, configuration, health, logging, connections, Docker and foundation tests      | Implemented; see verification record below                    |
+| 2     | SQL migrations, normalized entities, transaction helper, repositories, synthetic seeds | Features 2.1-2.2 implemented; Feature 2.3 awaits confirmation |
+| 3     | Application submission/retrieval/listing and validation                                | Planned                                                       |
+| 4     | Draft rules, criteria, immutable publication/versioning                                | Planned                                                       |
+| 5     | Operators, decimal metrics, decisions and history                                      | Planned                                                       |
+| 6     | Redis IP token bucket, atomic/concurrent tests                                         | Planned                                                       |
+| 7     | Versioned rule caching and fallback tests                                              | Planned                                                       |
+| 8     | Database idempotency, secure local authentication, RBAC, reviews and audits            | Planned                                                       |
+| 9     | Complete coverage/integration suite, Swagger, documentation and Docker verification    | Planned                                                       |
 
-Authentication, authorization, applicant data, migrations, seeds, business endpoints, decisions, transactions, rate limiting and rule caching are **unfinished**. The foundation has no applicant-facing operations to expose before these controls are added.
+Authentication, authorization, applicant data, business schema migrations, seeds, business endpoints, decisions, the shared transaction helper, rate limiting and rule caching are **unfinished**. The foundation has no applicant-facing operations to expose before these controls are added.
 
 ## Files created in Phase 1
 

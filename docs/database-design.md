@@ -8,12 +8,14 @@ The tables, constraints, indexes and triggers below are planned, not installed b
 
 The existing foundation already provides PostgreSQL 18 in Docker Compose, a shared `pg.Pool`, validated
 connection settings, bounded connection/query timeouts, idle-client error handling, startup/readiness
-checks and graceful shutdown. There are no application migrations, migration commands, business tables
-or seed scripts in the repository. Preserve the existing connection infrastructure.
+checks and graceful shutdown. Feature 2.2 adds the SQL migration runner and commands described in
+[migration instructions](../migrations/README.md). The runner creates `public.schema_migrations` when
+explicitly invoked with `up`; there are still no business SQL migrations, business tables or seed
+scripts supplied by these features. The existing application connection infrastructure is unchanged.
 
-Only this document changes in Feature 2.1. Migration tooling belongs to Feature 2.2; schema creation and
-database enforcement belong to Feature 2.3. Transactions, query utilities, seeds and real database
-integration tests follow in Features 2.5-2.8. Business services and repositories remain in their
+Feature 2.1 changed only this document; Feature 2.2 implements migration tooling. Business schema
+creation and database enforcement belong to Feature 2.3. Transactions, query utilities, seeds and real
+database integration tests follow in Features 2.5-2.8. Business services and repositories remain in their
 assigned later features/phases. No new runtime functionality is implied by this design.
 
 Related contracts: [architecture](architecture.md), [Redis versioning](redis-design.md) and
@@ -472,4 +474,6 @@ git add docs/database-design.md
 git commit -m "docs(db): design underwriting database schema"
 ```
 
-Feature 2.2 and all later features require explicit confirmation before work starts.
+The Feature 2.1 criteria above describe that feature's original scope. Feature 2.2 subsequently adds
+migration infrastructure and updates its implementation status here; it does not install this business
+schema. Feature 2.3 and all later features require explicit confirmation before work starts.
